@@ -6,16 +6,17 @@ import json
 import sys
 from logs.logger import logger
 from persistence.db_manager import DBManager
-from models.models import ScrappedWebsite, XSSDetector
+from models.models import ScrappedWebsite, XSSDetector, URL
 from utils.utils import WebIO
-
-# global variables, consumed by every threads. they could be a class property
-websites_to_visit = queue.Queue()
-visited_websites = {}  # a nice set
 
 class Worker(threading.Thread):
     """Worker threads to get the information gotten by the classes in the model
     and write to the database."""
+
+    # class attributes, accesed by every Worker instance
+    websites_to_visit = queue.Queue()
+    visited_websites = set()  # a nice set
+
     def __init__(self, lock, web_io, initial_url):
         threading.Thread.__init__(self)
         self.daemon = True  # when none of these exist anymore, exit
@@ -44,7 +45,7 @@ class Worker(threading.Thread):
                                  "Will continue with next website on queue.")
                 continue
             finally:
-                websites_to_visit.task_done()
+                Worker.websites_to_visit.task_done()
 
     def check_website_for_xss(self):
         """The heavy work. Get an URL from the Queue, check if it was already
@@ -53,12 +54,12 @@ class Worker(threading.Thread):
         Return True if website was processed, False if website was already visited.
         Not that is very useful, but allows the loop to continue smoothly.
         """
-        url = websites_to_visit.get()
-        if url in visited_websites:
+        url = Worker.websites_to_visit.get()
+        if url in Worker.visited_websites:
             logger.warning("URL {0} was already visited so it wont be processed".format(url))
             return False
-        visited_websites |= {url}
-        website_as_string = self.web_io.get_website_as_string(url)
+        Worker.visited_websites |= {url}
+        website_as_string = self.web_io.get_website_as_string(url.url)
         if website_as_string:
             scrapped_website = ScrappedWebsite(url, website_as_string)
             xss_found = self.extract_xss_from_website(scrapped_website)
@@ -74,9 +75,9 @@ class Worker(threading.Thread):
 
     def append_new_websites(self, scrapped_website):
         """Appends any relevant link to the queue to be processed in the future."""
-        new_links = scrapped_website.get_unique_relevant_links()
-        for link in new_links:
-            websites_to_visit.put(link)
+        new_urls = scrapped_website.get_unique_relevant_links()
+        for  url in new_urls:
+            Worker.websites_to_visit.put(url)
 
     def write_xss_to_db(self, xss_list):
         """Locking operation!. Writes to the db all the xss on xss_list."""
@@ -118,14 +119,15 @@ def main():
     """
     args = parse_args()
     web_io = WebIO(process_cookies(args.cookies))
-    websites_to_visit.put(args.initial_url)
+    initial_url = URL(args.initial_url)
+    Worker.websites_to_visit.put(initial_url)
     threads = []
     lock = threading.Lock()
     for t in range(args.threads):
         w = Worker(lock, web_io, args.initial_url)
         threads.append(w)
         w.start()
-    websites_to_visit.join()
+    Worker.websites_to_visit.join()
     print("Progam is finished! Check the database on persistence/xss.db.")
     return None
 

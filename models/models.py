@@ -6,48 +6,78 @@ from bs4 import BeautifulSoup
 
 """A module that holds all the main classes of the application.  """
 
+class URL:
+    """A class to represent the URLs. Used mostly to define equality,
+    so program wouldn't visit http://example.com#4 and http://example.com,
+    which are basically the same URL."""
+    def __init__(self, url, gotten_from=None):
+        self._gotten_from = gotten_from
+        self.url = self._standarize_url(url)
+        self._parsed_url = urlparse(self.url)
+        self.netloc = self._parsed_url.netloc
+        self.scheme = self._parsed_url.scheme
+        self.path = self._parsed_url.path
+        self.query = self._parsed_url.query
+
+    def __str__(self):
+        return self.url
+
+    def __eq__(self, another_url):
+        return (self.netloc == another_url.netloc and
+                self.path == another_url.path and
+                self.query == another_url.query)
+
+    def __hash__(self):
+        return hash("{0}{1}".format(self.netloc, self.path))
+
+    def _standarize_url(self, url):
+        """Standarized the URL. Necesary mostly because of relative urls
+        and because urlparse _WILL_ distinguis between example.com and
+        EXAMPLE.com, and we don't want that.
+        """
+        url = url if not url.endswith('/') else url[:-1]
+        url = url.lower()
+        parse_url = urlparse(url)
+        if not parse_url.netloc and self._gotten_from:
+            url = self._get_absolute_from_relative(url)
+        return url
+
+    def is_on_same_domain_as(self, another_url):
+        """True if another_url is on the same domain."""
+        return self.netloc == another_url.netloc
+
+    def _get_absolute_from_relative(self, relative_url):
+        """Recreates the absolute URL from the gotten_from URL.
+        Return the absolute URL."""
+        url = "{0}://{1}{2}".format(self._gotten_from.scheme,
+                                    self._gotten_from.netloc,
+                                    relative_url)
+        return url
+
 class ScrappedWebsite:
     """A ScrappedWebsite is a website parsed with BeautifulSoup and
     with methods prepared to extract information about its DOM."""
     def __init__(self, url, html_string):
         """Inits the ScrappedWebsite with a url (stripping away the ending /
         if it has it) and parsing it with BS."""
-        self.url = url if not url.endswith('/') else url[:-1]
-        self._parsed_url = urlparse(self.url)
-        self._scheme = self._parsed_url.scheme
-        self._domain_name = self._parsed_url.netloc
+        self.url = url
         self._soup = BeautifulSoup(html_string, 'html.parser')
-
-    def _is_on_same_domain(self, link):
-        """Return True if link is on same domain as the original website."""
-        netloc = urlparse(link).netloc
-        return netloc == self._domain_name
-
-    def _if_no_netlock_rebuild_link(self, relative_link):
-        """Return a rebuilit, absolute URL if the link is a relative link.
-        Else, just return the original link.
-        """
-        if not urlparse(relative_link).netloc:
-            return "{0}://{1}{2}".format(self._parsed_url.scheme,
-                                          self._parsed_url.netloc,
-                                          relative_link)
-        return relative_link
 
     def get_unique_relevant_links(self):
         """Return all the links found on the webpage which point
-        to the same network location. There are no duplicates on the returned
-        list.
+        to the same network location as a set. Guarantees there are no
+        duplicates.
         """
         raw_links = []
         for link in self._soup.find_all('a'):
-            raw_links.append(link.get('href'))
-        links = list(map(self._if_no_netlock_rebuild_link, raw_links))
-        links = list(filter(self._is_on_same_domain, links))
-        unique_links = set(links)
-        return unique_links
+            url_string = link.get('href')
+            if url_string:
+                raw_links.append(URL(url_string, gotten_from=self.url))
+        link_set = {l for l in raw_links if l.is_on_same_domain_as(self.url)}
+        return link_set
 
     def _rebuild_action_link(self, action):
-        return self.url if action is None else self._if_no_netlock_rebuild_link(action)
+        return self.url if action is None else URL(action)
 
     def get_exposed_inputs(self):
         """Return a list with tuples of (method, action, is_upload, name), where
@@ -69,7 +99,7 @@ class ScrappedWebsite:
                 is_upload = discriminate_query_type(query_type)
                 query_name = input_.get('name') or ''
                 method = form.get('method')
-                method, action, query_name = lower_strings(method, action, query_name)
+                method, query_name = lower_strings(method, query_name)
                 methods_actions_urls_and_names.append((method, action,
                                                        is_upload, query_name))
         return methods_actions_urls_and_names
@@ -119,6 +149,7 @@ class XSSDetector:
         except FileNotFoundError:
             file_as_string = ''
         return file_as_string
+
     def _create_attack_information(self):
         """Return a list of tuples that look like
         (url, method, is_upload, {query_parameter: test}), where url is
@@ -154,7 +185,7 @@ class XSSDetector:
         base_url = self._scrapped_website.url
         found_xss_list = []
         for method, url, is_upload, payload in self.attack_information:
-            if self.web_io.was_request_accepted(url, method, is_upload, payload):
+            if self.web_io.was_request_accepted(url.url, method, is_upload, payload):
                 xss_found = XSS(base_url, payload, method)
                 found_xss_list.append(xss_found)
         return found_xss_list
