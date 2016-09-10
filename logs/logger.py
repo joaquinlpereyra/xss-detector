@@ -1,9 +1,12 @@
+"""A simple module to hold a global reference to the logger.
+Rather uninteresting.
+"""
+
 import logging
-logging.getLogger("requests").setLevel(logging.CRITICAL)
+logging.getLogger("requests").setLevel(logging.DEBUG)
 logging.basicConfig(filename='logs/logs.log', level=logging.DEBUG,
                     format='[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s',
                     datefmt='%H:%M:%S')
-
 console_logger = logging.StreamHandler()
 console_logger.setLevel(logging.ERROR)
 console_format = logging.Formatter('%(levelname)-s: %(message)s')
