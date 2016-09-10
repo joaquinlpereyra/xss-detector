@@ -11,7 +11,7 @@ from utils.utils import WebIO
 
 # global variables, consumed by every threads. they could be a class property
 websites_to_visit = queue.Queue()
-visited_websites = []
+visited_websites = {}  # a nice set
 
 class Worker(threading.Thread):
     """Worker threads to get the information gotten by the classes in the model
@@ -54,10 +54,10 @@ class Worker(threading.Thread):
         Not that is very useful, but allows the loop to continue smoothly.
         """
         url = websites_to_visit.get()
-        if url in set(visited_websites):
+        if url in visited_websites:
             logger.warning("URL {0} was already visited so it wont be processed".format(url))
             return False
-        visited_websites.append(url)
+        visited_websites |= {url}
         website_as_string = self.web_io.get_website_as_string(url)
         if website_as_string:
             scrapped_website = ScrappedWebsite(url, website_as_string)
