@@ -74,12 +74,22 @@ def parse_args():
     parser.add_argument("threads", type=int, help="Amount of threads to be used.")
     parser.add_argument("--cookies", type=str, default=None,
                         help=("You can specify cookies to be used in the requests. "
-                              "You must provide it as a valid json string"))
+                            "You must provide it as a json which lools like this: \n "
+                            "'{cookie1: value1, cookie2: value2, ...} \n"))
     return parser.parse_args()
+
+def process_cookies(json_cookie_string):
+    if json_cookie_string is None:
+        return json_cookie_string
+    try:
+        return json.loads(json_cookie_string)
+    except json.decoder.JSONDecodeError:
+        logger.exception("You provided a non-valid string for cookies.")
+        raise
 
 def main():
     args = parse_args()
-    web_io = SafeIO(args.cookies)
+    web_io = SafeIO(process_cookies(args.cookies))
     websites_to_visit.put(args.initial_url)
     threads = []
     lock = threading.Lock()
