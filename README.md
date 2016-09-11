@@ -22,6 +22,16 @@ Or, package by package...
 pip install --user requests dataset beautifulsoup4
 ```
 
+Or, with docker...
+```
+$ docker build -t scanner
+```
+
+And then you can start it with 
+```
+$ docker run scanner 
+```
+
 Usage 
 =====
 Before doing anything, you probably want to populate the xss_test folders with your
