@@ -27,6 +27,9 @@ class URL:
                 self.path == another_url.path and
                 self.query == another_url.query)
 
+    def __repr__(self):
+        return "{0} {1}".format(str(self), super().__repr__())
+
     def __hash__(self):
         return hash("{0}{1}".format(self.netloc, self.path))
 
@@ -35,7 +38,6 @@ class URL:
         and because urlparse _WILL_ distinguis between example.com and
         EXAMPLE.com, and we don't want that.
         """
-        url = url if not url.endswith('/') else url[:-1]
         url = url.lower()
         parse_url = urlparse(url)
         if not parse_url.netloc and self._gotten_from:
@@ -71,9 +73,9 @@ class ScrappedWebsite:
         raw_links = []
         for link in self._soup.find_all('a'):
             url_string = link.get('href')
-            if url_string:
+            if url_string and not url_string.startswith('#'):
                 raw_links.append(URL(url_string, gotten_from=self.url))
-        link_set = {l for l in raw_links if l.is_on_same_domain_as(self.url)}
+        link_set = {l for l in raw_links if l.is_on_same_domain_as(self.url) and l != self.url}
         return link_set
 
     def _rebuild_action_link(self, action):
@@ -100,8 +102,7 @@ class ScrappedWebsite:
                 query_name = input_.get('name') or ''
                 method = form.get('method')
                 method, query_name = lower_strings(method, query_name)
-                methods_actions_urls_and_names.append((method, action,
-                                                       is_upload, query_name))
+                methods_actions_urls_and_names.append((method, action, is_upload, query_name))
         return methods_actions_urls_and_names
 
 class XSS:
@@ -112,6 +113,11 @@ class XSS:
         self.url = url.url
         self.payload = json.dumps(payload)
         self.method = method
+
+    def __eq__(self, another):
+        return (self.url == another.url and
+                self.payload == another.payload and
+                self.method == another.method)
 
     def __str__(self):
         return ("XSS found on URL {0} with parameters {1} "
