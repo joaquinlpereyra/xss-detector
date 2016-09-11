@@ -143,8 +143,7 @@ Ah, you mean, if the script finds input A and B, why doesn't it try to send 3 ma
 each looking like (A=payload, B=None), (A=None, B=payload), (A=payload, B=payload)?
 
 While that _could_ expose more XSS, it is computationally very expensive. For a page with N inputs,
-we would have to send #(P(N)-1) requests, where P is the powerset of the set of forms and # the cardinal function.
-That is (2\*\*N-1).
+we would have to send #(P(N))-1 requests, where P is the powerset of the set of forms and # the cardinal function.  That is (2\*\*N-1).
 
 That means that for a webpage of 16 inputs (not crazy for a registration page, for example) we would have
 to make 65535 requests. For a webpage of 32 inputs (unlikely, but not impossible), 4294967295 requests would 

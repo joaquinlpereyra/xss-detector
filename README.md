@@ -5,7 +5,7 @@ for every link found inside that URL which points to the same domain.
 
 Installation
 ============
-A modern Unix system is asumed. You need sqlite3 and python 3.5. 
+A modern Unix system is asumed. You will need sqlite3 and python 3.5. 
 
 You also need the following dependencies for python:
     *requests: to make requests and get their response
@@ -14,7 +14,7 @@ You also need the following dependencies for python:
 
 All of these can be easily installed with pip:
 ```
-pip -r requirements.txt
+pip install -r requirements.txt
 ```
 
 Or, package by package...
