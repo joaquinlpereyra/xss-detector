@@ -77,7 +77,7 @@ class ScrappedWebsite:
         return link_set
 
     def _rebuild_action_link(self, action):
-        return self.url if action is None else URL(action)
+        return self.url if not action else URL(action, gotten_from=self.url)
 
     def get_exposed_inputs(self):
         """Return a list with tuples of (method, action, is_upload, name), where
@@ -109,7 +109,7 @@ class XSS:
     Holds the URL where it was found, the payload that got through
     and the method ('GET' or 'POST')"""
     def __init__(self, url, payload, method):
-        self.url = url
+        self.url = url.url
         self.payload = json.dumps(payload)
         self.method = method
 

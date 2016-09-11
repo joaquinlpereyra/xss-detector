@@ -1,3 +1,4 @@
+import time
 import requests
 import threading
 import queue
@@ -125,6 +126,7 @@ def main():
     for t in range(args.threads):
         w = Worker(lock, web_io, args.initial_url)
         w.start()
+        time.sleep(1) # HORRIBLE HACK TO AVOID ALMOST-IMPOSSIBLE RACE-CONDITION D:
     Worker.websites_to_visit.join()
     print("Progam is finished! Check the database on persistence/xss.db.")
     return None
