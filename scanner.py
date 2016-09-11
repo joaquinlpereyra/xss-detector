@@ -121,11 +121,9 @@ def main():
     web_io = WebIO(process_cookies(args.cookies))
     initial_url = URL(args.initial_url)
     Worker.websites_to_visit.put(initial_url)
-    threads = []
     lock = threading.Lock()
     for t in range(args.threads):
         w = Worker(lock, web_io, args.initial_url)
-        threads.append(w)
         w.start()
     Worker.websites_to_visit.join()
     print("Progam is finished! Check the database on persistence/xss.db.")
